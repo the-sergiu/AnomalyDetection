@@ -1,6 +1,7 @@
 # Current Dev
 Grounded-Segment-Anything/
 pretrained/
+datasets/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
