@@ -240,16 +240,16 @@ def inference(
     # mask_draw = ImageDraw.Draw(mask_image)
 
     image_draw = ImageDraw.Draw(raw_image)
-    label2boxes = []
+    # label2boxes = []
     for box, label in zip(boxes_filt, pred_phrases):
         draw_box(box, image_draw, label)
-        label2boxes.append((label, box))
+        # label2boxes.append((label, box))
 
     out_image = raw_image.convert("RGBA")
     # out_image.alpha_composite(mask_image)
 
     if tagging_model_type == "RAM":
-        return tags.replace(", ", " | "), out_image, label2boxes, boxes_filt
+        return tags.replace(", ", " | "), out_image, pred_phrases, boxes_filt
     else:
         return tags.replace(", ", " | "), caption, out_image
 
