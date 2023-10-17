@@ -4,6 +4,7 @@
 ## Setup
 
 ### Recognize Anything Model ( + Grounded Segment Anything)
+[**GitHub link + Papers**](https://github.com/IDEA-Research/Grounded-Segment-Anything)
 
 - Create Virtual Environment within Linux (or WSL) using these commands (more or less, depending on what you already have installed)
 ```bash
@@ -93,3 +94,5 @@ cd Users/Sergiu/Desktop/AnomalyDetection
 source venv/bin/activate
 jupyter notebook --no-browser
 ```
+
+## TODO: Datasets
