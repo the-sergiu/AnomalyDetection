@@ -30,55 +30,32 @@ def load_mae(
     return model
 
 
-def to_nchw(img: torch.Tensor) -> torch.Tensor:
-    """Convert image tensor from NHWC to NCHW format."""
-    return torch.einsum("nhwc->nchw", img)
+def process_image(img: np.array, model: Any, device: str):   
+    x = torch.tensor(img).to(device).float()
 
+    # make it a batch-like
+    x = x.unsqueeze(dim=0)
+    x = torch.einsum('nhwc->nchw', x)
 
-def to_nhwc(img: torch.Tensor) -> torch.Tensor:
-    """Convert image tensor from NCHW to NHWC format."""
-    return torch.einsum("nchw->nhwc", img)
-
-
-def apply_mask(
-    image: torch.Tensor, mask: torch.Tensor, recon: torch.Tensor
-) -> torch.Tensor:
-    """Apply the mask to the image and combine with the reconstruction."""
-    im_masked = image * (1 - mask)
-    im_paste = im_masked + recon * mask
-    return im_masked, im_paste
-
-
-def process_image(img: np.array, model: Any, device: str):
-    """
-    Process the input image using the Masked Autoencoder (MAE) architecture on the GPU.
-
-    Returns:
-        tuple: Original image, masked image, reconstructed image, and combined original and reconstructed image.
-    """
-    # Convert numpy array to tensor and move to device.
-    x = torch.tensor(img).to(device).float().unsqueeze(dim=0)
-
-    # Convert the image from NHWC format to NCHW format which is commonly used with convolutional neural networks.
-    x = to_nchw(x)
-
-    # Forward pass through the MAE model.
+    # run MAE
     loss, y, mask = model(x, mask_ratio=0.75)
-
-    # Convert patches back to the image format and convert layout to NHWC.
     y = model.unpatchify(y)
-    y = to_nhwc(y).detach()
+    y = torch.einsum('nchw->nhwc', y).detach()
 
-    # Reshape the mask tensor and unpatchify it to match image dimensions.
-    mask = mask.unsqueeze(-1).repeat(1, 1, model.patch_embed.patch_size[0] ** 2 * 3)
-    mask = to_nhwc(model.unpatchify(mask)).detach()
+    # visualize the mask
+    mask = mask.detach()
+    mask = mask.unsqueeze(-1).repeat(1, 1, model.patch_embed.patch_size[0]**2 *3)  # (N, H*W, p*p*3)
+    mask = model.unpatchify(mask)  # 1 is removing, 0 is keeping
+    mask = torch.einsum('nchw->nhwc', mask).detach()
+    
+    x = torch.einsum('nchw->nhwc', x)
 
-    # Convert the original image tensor to NHWC layout.
-    x = to_nhwc(x)
+    # masked image
+    im_masked = x * (1 - mask)
 
-    # Apply the mask to the original image and combine it with the MAE reconstruction.
-    im_masked, im_paste = apply_mask(x, mask, y)
-
+    # MAE reconstruction pasted with visible patches
+    im_paste = x * (1 - mask) + y * mask
+   
     return x[0], im_masked[0], y[0], im_paste[0]
 
 
