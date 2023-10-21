@@ -57,68 +57,68 @@ def load_model(model_config_path: str, model_checkpoint_path: str, device: str) 
     return model
 
 
-# def get_grounding_output(
-#     model: torch.nn.Module,
-#     image: torch.Tensor,
-#     caption: str,
-#     box_threshold: float,
-#     text_threshold: float,
-#     device: str = "cpu",
-# ) -> Tuple[torch.Tensor, torch.Tensor, List[str]]:
-#     """
-#     Performs grounding on the given image using the specified model and caption.
+def get_grounding_output(
+    model: torch.nn.Module,
+    image: torch.Tensor,
+    caption: str,
+    box_threshold: float,
+    text_threshold: float,
+    device: str = "cpu",
+) -> Tuple[torch.Tensor, torch.Tensor, List[str]]:
+    """
+    Performs grounding on the given image using the specified model and caption.
 
-#     Args:
-#         model (torch.nn.Module): The pre-trained grounding model.
-#         image (torch.Tensor): Image tensor of shape [C, H, W].
-#         caption (str): Caption describing the image.
-#         box_threshold (float): Threshold for filtering bounding boxes based on the logit scores.
-#         text_threshold (float): Threshold for creating phrases from logit positions.
-#         device (str, optional): Device to run the model on. Default is "cpu".
+    Args:
+        model (torch.nn.Module): The pre-trained grounding model.
+        image (torch.Tensor): Image tensor of shape [C, H, W].
+        caption (str): Caption describing the image.
+        box_threshold (float): Threshold for filtering bounding boxes based on the logit scores.
+        text_threshold (float): Threshold for creating phrases from logit positions.
+        device (str, optional): Device to run the model on. Default is "cpu".
 
-#     Returns:
-#         torch.Tensor: Filtered bounding boxes of detected objects.
-#         torch.Tensor: Corresponding scores for the bounding boxes.
-#         List[str]: Predicted phrases associated with the bounding boxes.
-#     """
+    Returns:
+        torch.Tensor: Filtered bounding boxes of detected objects.
+        torch.Tensor: Corresponding scores for the bounding boxes.
+        List[str]: Predicted phrases associated with the bounding boxes.
+    """
 
-#     # Convert caption to lowercase and append "." if not present
-#     caption = caption.lower().strip()
-#     if not caption.endswith("."):
-#         caption = caption + "."
+    # Convert caption to lowercase and append "." if not present
+    caption = caption.lower().strip()
+    if not caption.endswith("."):
+        caption = caption + "."
 
-#     # Move model and image to the specified device
-#     model = model.to(device)
-#     image = image.to(device)
+    # Move model and image to the specified device
+    model = model.to(device)
+    image = image.to(device)
 
-#     # Inference without gradient calculation for efficiency
-#     with torch.no_grad():
-#         outputs = model(image[None], captions=[caption])
+    # Inference without gradient calculation for efficiency
+    with torch.no_grad():
+        outputs = model(image[None], captions=[caption])
 
-#     # Extract prediction logits and bounding boxes from the model output
-#     logits = outputs["pred_logits"].cpu().sigmoid()[0]  # (nq, 256)
-#     boxes = outputs["pred_boxes"].cpu()[0]  # (nq, 4)
+    # Extract prediction logits and bounding boxes from the model output
+    logits = outputs["pred_logits"].cpu().sigmoid()[0]  # (nq, 256)
+    boxes = outputs["pred_boxes"].cpu()[0]  # (nq, 4)
 
-#     # Filter boxes and logits based on the box_threshold
-#     filt_mask = logits.max(dim=1)[0] > box_threshold
-#     logits_filt = logits[filt_mask]  # num_filt, 256
-#     boxes_filt = boxes[filt_mask]  # num_filt, 4
+    # Filter boxes and logits based on the box_threshold
+    filt_mask = logits.max(dim=1)[0] > box_threshold
+    logits_filt = logits[filt_mask]  # num_filt, 256
+    boxes_filt = boxes[filt_mask]  # num_filt, 4
 
-#     # Tokenize the caption using the model's tokenizer
-#     tokenizer = model.tokenizer
-#     tokenized = tokenizer(caption)
+    # Tokenize the caption using the model's tokenizer
+    tokenizer = model.tokenizer
+    tokenized = tokenizer(caption)
 
-#     # Extract phrases and scores based on the logits and text_threshold
-#     pred_phrases = []
-#     scores = []
-#     for logit, box in zip(logits_filt, boxes_filt):
-#         pred_phrase = get_phrases_from_posmap(
-#             logit > text_threshold, tokenized, tokenizer
-#         )
-#         pred_phrases.append(pred_phrase + f"({str(logit.max().item())[:4]})")
-#         scores.append(logit.max().item())
+    # Extract phrases and scores based on the logits and text_threshold
+    pred_phrases = []
+    scores = []
+    for logit, box in zip(logits_filt, boxes_filt):
+        pred_phrase = get_phrases_from_posmap(
+            logit > text_threshold, tokenized, tokenizer
+        )
+        pred_phrases.append(pred_phrase + f"({str(logit.max().item())[:4]})")
+        scores.append(logit.max().item())
 
-#     return boxes_filt, torch.Tensor(scores), pred_phrases
+    return boxes_filt, torch.Tensor(scores), pred_phrases
 
 
 # Normalize and transform the image for tagging model
@@ -126,7 +126,9 @@ NORMALIZE = TS.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 TAGGING_TRANSFORM = TS.Compose([TS.Resize((384, 384)), TS.ToTensor(), NORMALIZE])
 GROUNDING_TRANSFORM = T.Compose(
     [
-        T.RandomResize([800], max_size=1333),
+        # T.RandomResize([800], max_size=1333),
+        # Added T.Resize to fix the resized image during batch inference
+        # T.Resize((512, 512)),
         T.ToTensor(),
         T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ]
@@ -151,7 +153,7 @@ def detect_objects_with_ram(
     tags = res[0].strip(" ").replace("  ", " ").replace(" |", ",").lower().strip()
     if not tags.endswith("."):
         tags = tags + "."
-    # print("Tags: ", tags)
+    print("Tags: ", tags)
 
     # Use predefined grounding transformation for GroundingDINO model
     image, _ = GROUNDING_TRANSFORM(raw_image, None)
@@ -168,9 +170,8 @@ def detect_objects_with_ram(
     )
 
     # Extract prediction logits and bounding boxes from the model output
-    logits = outputs["pred_logits"].sigmoid()[0]  # (nq, 256)
-    boxes = outputs["pred_boxes"][0]  # (nq, 4)
-    logits = logits.to(device); boxes = boxes.to(device)
+    logits = outputs["pred_logits"].cpu().sigmoid()[0]  # (nq, 256)
+    boxes = outputs["pred_boxes"].cpu()[0]  # (nq, 4)
 
     # Filter boxes and logits based on the box_threshold
     filt_mask = logits.max(dim=1)[0] > box_threshold
@@ -191,15 +192,14 @@ def detect_objects_with_ram(
         pred_phrases.append(pred_phrase + f"({str(logit.max().item())[:4]})")
         scores.append(logit.max().item())
 
-    scores = torch.Tensor(scores)
     size = raw_image.size
     H, W = size[1], size[0]
     for i in range(boxes_filt.size(0)):
-        boxes_filt[i] = boxes_filt[i] * torch.Tensor([W, H, W, H]).to(device)
+        boxes_filt[i] = boxes_filt[i] * torch.Tensor([W, H, W, H])
         boxes_filt[i][:2] -= boxes_filt[i][2:] / 2
         boxes_filt[i][2:] += boxes_filt[i][:2]
 
-    nms_idx = torchvision.ops.nms(boxes_filt, scores.to(device), iou_threshold).tolist()
+    nms_idx = torchvision.ops.nms(boxes_filt, scores, iou_threshold).numpy().tolist()
     boxes_filt = boxes_filt[nms_idx]
 
     if draw_boxes:
@@ -212,126 +212,171 @@ def detect_objects_with_ram(
 
     return out_image, boxes_filt
 
-# @torch.no_grad()
-# def inference(
-#     raw_image: Image.Image,
-#     specified_tags: List[str],
-#     do_det_seg: bool,
-#     tagging_model_type: str,
-#     tagging_model: torch.nn.Module,
-#     grounding_dino_model: torch.nn.Module,
-#     # sam_model: torch.nn.Module,
-#     label_with_probab: bool,
-#     device: str,
-# ) -> Union[
-#     Tuple[str, Image.Image, List[Tuple[str, torch.Tensor]], torch.Tensor],
-#     Tuple[str, str, Image.Image],
-# ]:
-#     """
-#     Perform inference on an image, tagging it, optionally running object detection and segmentation.
 
-#     Args:
-#         raw_image (Image.Image): Input image to process.
-#         specified_tags (List[str]): List of tags to consider for tagging.
-#         do_det_seg (bool): Whether to run detection and segmentation on the image.
-#         tagging_model_type (str): Type of tagging model used ("RAM" or others).
-#         tagging_model (torch.nn.Module): Pre-trained tagging model.
-#         grounding_dino_model (torch.nn.Module): Pre-trained grounding model.
-#         sam_model (torch.nn.Module): Pre-trained segmentation model.
-#         label_with_probab (bool): Whether to label the output with probabilities.
-#         device (str): Device to run the model on.
+def preprocess_caption(caption: str) -> str:
+    result = caption.lower().strip()
+    if result.endswith("."):
+        return result
+    return result + "."
 
-#     Returns:
-#         Tuple: Depending on the operations performed and the model type, returns different types of outputs.
-#     """
 
-#     print(f"Start processing, image size {raw_image.size}")
-#     raw_image = raw_image.convert("RGB")
+def predict_batch(
+        model,
+        images: torch.Tensor,
+        captions: list[str],
+        box_threshold: float = box_threshold,
+        text_threshold: float = text_threshold,
+        device: str = "cuda"
+) -> Tuple[torch.Tensor, torch.Tensor, List[str]]:
+    captions = preprocess_caption(caption=captions)
 
-#     image = TAGGING_TRANSFORM(raw_image.resize((384, 384))).unsqueeze(0).to(device)
+    model = model.to(device)
+    image = images.to(device)
 
-#     # Different handling based on tagging model type
-#     if tagging_model_type == "RAM":
-#         res = inference_ram(image, tagging_model)
-#         tags = res[0].strip(" ").replace("  ", " ").replace(" |", ",")
-#         print("Tags: ", tags)
-#     else:
-#         res = inference_tag2text(image, tagging_model, specified_tags)
-#         tags = res[0].strip(" ").replace("  ", " ").replace(" |", ",")
-#         caption = res[2]
-#         print(f"Tags: {tags}")
-#         print(f"Caption: {caption}")
+    # print(f"Image shape: {image.shape}") # Image shape: torch.Size([num_batch, 3, 800, 1200])
+    with torch.no_grad():
+        outputs = model(image, captions=captions) # <------- I use the same caption for all the images for my use-case
 
-#     # Skip detection and segmentation if not required
-#     if not do_det_seg:
-#         if tagging_model_type == "RAM":
-#             return tags.replace(", ", " | "), None
-#         else:
-#             return tags.replace(", ", " | "), caption, None
+    print(f'{outputs["pred_logits"].shape}') # torch.Size([num_batch, 900, 256]) 
+    print(f'{outputs["pred_boxes"].shape}') # torch.Size([num_batch, 900, 4])
+    prediction_logits = outputs["pred_logits"].cpu().sigmoid()[0]  # prediction_logits.shape = (nq, 256)
+    prediction_boxes = outputs["pred_boxes"].cpu()[0]  # prediction_boxes.shape = (nq, 4)
 
-#     # Use predefined grounding transformation for GroundingDINO model
-#     image, _ = GROUNDING_TRANSFORM(raw_image, None)
+    mask = prediction_logits.max(dim=1)[0] > box_threshold
+    logits = prediction_logits[mask]  # logits.shape = (n, 256)
+    boxes = prediction_boxes[mask]  # boxes.shape = (n, 4)
 
-#     boxes_filt, scores, pred_phrases = get_grounding_output(
-#         grounding_dino_model, image, tags, box_threshold, text_threshold, device=device
-#     )
-#     # print("GroundingDINO finished")
+    tokenizer = model.tokenizer
+    tokenized = tokenizer(captions)
 
-#     # Process image for SAM model
-#     # image = np.asarray(raw_image)
-#     # sam_model.set_image(image)
+    phrases = [
+        get_phrases_from_posmap(logit > text_threshold, tokenized, tokenizer).replace('.', '')
+        for logit
+        in logits
+    ]
 
-#     size = raw_image.size
-#     H, W = size[1], size[0]
-#     for i in range(boxes_filt.size(0)):
-#         boxes_filt[i] = boxes_filt[i] * torch.Tensor([W, H, W, H])
-#         boxes_filt[i][:2] -= boxes_filt[i][2:] / 2
-#         boxes_filt[i][2:] += boxes_filt[i][:2]
+    return boxes, logits.max(dim=1)[0], phrases
 
-#     # boxes_filt = boxes_filt.cpu()
-#     # Apply NMS to remove overlapped boxes
-#     # print(f"Before NMS: {boxes_filt.shape[0]} boxes")
-#     nms_idx = torchvision.ops.nms(boxes_filt, scores, iou_threshold).numpy().tolist()
-#     boxes_filt = boxes_filt[nms_idx]
+@torch.no_grad()
+def inference(
+    raw_image: Image.Image,
+    specified_tags: List[str],
+    do_det_seg: bool,
+    tagging_model_type: str,
+    tagging_model: torch.nn.Module,
+    grounding_dino_model: torch.nn.Module,
+    # sam_model: torch.nn.Module,
+    label_with_probab: bool,
+    device: str,
+) -> Union[
+    Tuple[str, Image.Image, List[Tuple[str, torch.Tensor]], torch.Tensor],
+    Tuple[str, str, Image.Image],
+]:
+    """
+    Perform inference on an image, tagging it, optionally running object detection and segmentation.
 
-#     pred_phrases = (
-#         [pred_phrases[idx] for idx in nms_idx]
-#         if label_with_probab  # If we want to display the label alongside probability
-#         else [re.sub(r"\(\d+\.\d+\)", "", pred_phrases[idx]).strip() for idx in nms_idx]
-#     )
+    Args:
+        raw_image (Image.Image): Input image to process.
+        specified_tags (List[str]): List of tags to consider for tagging.
+        do_det_seg (bool): Whether to run detection and segmentation on the image.
+        tagging_model_type (str): Type of tagging model used ("RAM" or others).
+        tagging_model (torch.nn.Module): Pre-trained tagging model.
+        grounding_dino_model (torch.nn.Module): Pre-trained grounding model.
+        sam_model (torch.nn.Module): Pre-trained segmentation model.
+        label_with_probab (bool): Whether to label the output with probabilities.
+        device (str): Device to run the model on.
 
-#     # print(f"After NMS: {boxes_filt.shape[0]} boxes")
+    Returns:
+        Tuple: Depending on the operations performed and the model type, returns different types of outputs.
+    """
 
-#     # Commented out SAM model operations for potential future use
-#     # transformed_boxes = sam_model.transform.apply_boxes_torch(
-#     #     boxes_filt, image.shape[:2]
-#     # ).to(device)
+    print(f"Start processing, image size {raw_image.size}")
+    raw_image = raw_image.convert("RGB")
 
-#     # masks, _, _ = sam_model.predict_torch(
-#     #     point_coords=None,
-#     #     point_labels=None,
-#     #     boxes=transformed_boxes.to(device),
-#     #     multimask_output=False,
-#     # )
-#     # print("SAM finished")
+    image = TAGGING_TRANSFORM(raw_image.resize((384, 384))).unsqueeze(0).to(device)
 
-#     # Drawing on the output image
-#     # mask_image = Image.new('RGBA', size, color=(0, 0, 0, 0))
-#     # mask_draw = ImageDraw.Draw(mask_image)
+    # Different handling based on tagging model type
+    if tagging_model_type == "RAM":
+        res = inference_ram(image, tagging_model)
+        tags = res[0].strip(" ").replace("  ", " ").replace(" |", ",")
+        print("Tags: ", tags)
+    else:
+        res = inference_tag2text(image, tagging_model, specified_tags)
+        tags = res[0].strip(" ").replace("  ", " ").replace(" |", ",")
+        caption = res[2]
+        print(f"Tags: {tags}")
+        print(f"Caption: {caption}")
 
-#     image_draw = ImageDraw.Draw(raw_image)
-#     # label2boxes = []
-#     for box, label in zip(boxes_filt, pred_phrases):
-#         draw_box(box, image_draw, label)
-#         # label2boxes.append((label, box))
+    # Skip detection and segmentation if not required
+    if not do_det_seg:
+        if tagging_model_type == "RAM":
+            return tags.replace(", ", " | "), None
+        else:
+            return tags.replace(", ", " | "), caption, None
 
-#     out_image = raw_image.convert("RGBA")
-#     # out_image.alpha_composite(mask_image)
+    # Use predefined grounding transformation for GroundingDINO model
+    image, _ = GROUNDING_TRANSFORM(raw_image, None)
 
-#     if tagging_model_type == "RAM":
-#         return tags.replace(", ", " | "), out_image, pred_phrases, boxes_filt
-#     else:
-#         return tags.replace(", ", " | "), caption, out_image
+    boxes_filt, scores, pred_phrases = get_grounding_output(
+        grounding_dino_model, image, tags, box_threshold, text_threshold, device=device
+    )
+    # print("GroundingDINO finished")
+
+    # Process image for SAM model
+    # image = np.asarray(raw_image)
+    # sam_model.set_image(image)
+
+    size = raw_image.size
+    H, W = size[1], size[0]
+    for i in range(boxes_filt.size(0)):
+        boxes_filt[i] = boxes_filt[i] * torch.Tensor([W, H, W, H])
+        boxes_filt[i][:2] -= boxes_filt[i][2:] / 2
+        boxes_filt[i][2:] += boxes_filt[i][:2]
+
+    # boxes_filt = boxes_filt.cpu()
+    # Apply NMS to remove overlapped boxes
+    # print(f"Before NMS: {boxes_filt.shape[0]} boxes")
+    nms_idx = torchvision.ops.nms(boxes_filt, scores, iou_threshold).numpy().tolist()
+    boxes_filt = boxes_filt[nms_idx]
+
+    pred_phrases = (
+        [pred_phrases[idx] for idx in nms_idx]
+        if label_with_probab  # If we want to display the label alongside probability
+        else [re.sub(r"\(\d+\.\d+\)", "", pred_phrases[idx]).strip() for idx in nms_idx]
+    )
+
+    # print(f"After NMS: {boxes_filt.shape[0]} boxes")
+
+    # Commented out SAM model operations for potential future use
+    # transformed_boxes = sam_model.transform.apply_boxes_torch(
+    #     boxes_filt, image.shape[:2]
+    # ).to(device)
+
+    # masks, _, _ = sam_model.predict_torch(
+    #     point_coords=None,
+    #     point_labels=None,
+    #     boxes=transformed_boxes.to(device),
+    #     multimask_output=False,
+    # )
+    # print("SAM finished")
+
+    # Drawing on the output image
+    # mask_image = Image.new('RGBA', size, color=(0, 0, 0, 0))
+    # mask_draw = ImageDraw.Draw(mask_image)
+
+    image_draw = ImageDraw.Draw(raw_image)
+    # label2boxes = []
+    for box, label in zip(boxes_filt, pred_phrases):
+        draw_box(box, image_draw, label)
+        # label2boxes.append((label, box))
+
+    out_image = raw_image.convert("RGBA")
+    # out_image.alpha_composite(mask_image)
+
+    if tagging_model_type == "RAM":
+        return tags.replace(", ", " | "), out_image, pred_phrases, boxes_filt
+    else:
+        return tags.replace(", ", " | "), caption, out_image
 
 
 def draw_mask(
