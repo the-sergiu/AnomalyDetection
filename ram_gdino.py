@@ -141,8 +141,8 @@ def detect_objects_with_ram(
     grounding_dino_model: torch.nn.Module,
     ram_model: torch.nn.Module,
     draw_boxes: bool = False,
-    device: str = "cuda"
-    
+    label_with_probab: bool = False,
+    device: str = "cuda",
 ):
     # print(f"Start processing, image size {raw_image.size}")
     raw_image = raw_image.convert("RGB")
@@ -157,6 +157,7 @@ def detect_objects_with_ram(
 
     # Use predefined grounding transformation for GroundingDINO model
     image, _ = GROUNDING_TRANSFORM(raw_image, None)
+    # grounding_dino_model = grounding_dino_model.to(device)
     image = image.to(device)
     # Do I really need model = grounding_dino_model.to(device)?
 
@@ -164,14 +165,12 @@ def detect_objects_with_ram(
     #     grounding_dino_model, image, tags, box_threshold, text_threshold, device=device
     # )
 
-    outputs = grounding_dino_model(
-        image[None], 
-        captions=[tags]
-    )
+    outputs = grounding_dino_model(image[None], captions=[tags])
 
     # Extract prediction logits and bounding boxes from the model output
     logits = outputs["pred_logits"].cpu().sigmoid()[0]  # (nq, 256)
     boxes = outputs["pred_boxes"].cpu()[0]  # (nq, 4)
+    # logits = logits.to(device); boxes = boxes.to(device)
 
     # Filter boxes and logits based on the box_threshold
     filt_mask = logits.max(dim=1)[0] > box_threshold
@@ -192,21 +191,31 @@ def detect_objects_with_ram(
         pred_phrases.append(pred_phrase + f"({str(logit.max().item())[:4]})")
         scores.append(logit.max().item())
 
+    scores = torch.Tensor(scores)
     size = raw_image.size
     H, W = size[1], size[0]
     for i in range(boxes_filt.size(0)):
-        boxes_filt[i] = boxes_filt[i] * torch.Tensor([W, H, W, H])
+        boxes_filt[i] = boxes_filt[i] * torch.Tensor([W, H, W, H])  # Move to CUDA
         boxes_filt[i][:2] -= boxes_filt[i][2:] / 2
         boxes_filt[i][2:] += boxes_filt[i][:2]
 
-    nms_idx = torchvision.ops.nms(boxes_filt, scores, iou_threshold).numpy().tolist()
+    print(f"Before NMS: {boxes_filt.shape[0]} boxes")
+    nms_idx = (
+        torchvision.ops.nms(boxes_filt, scores, iou_threshold).cpu().numpy().tolist()
+    )
     boxes_filt = boxes_filt[nms_idx]
+    pred_phrases = (
+        [pred_phrases[idx] for idx in nms_idx]
+        if label_with_probab  # If we want to display the label alongside probability
+        else [re.sub(r"\(\d+\.\d+\)", "", pred_phrases[idx]).strip() for idx in nms_idx]
+    )
+    print(f"After NMS: {boxes_filt.shape[0]} boxes")
 
-    if draw_boxes:
-        image_draw = ImageDraw.Draw(raw_image)
-        # label2boxes = []
-        for box, label in zip(boxes_filt, pred_phrases):
-            draw_box(box, image_draw, label)
+    # if draw_boxes:
+    image_draw = ImageDraw.Draw(raw_image)
+    # label2boxes = []
+    for box, label in zip(boxes_filt, pred_phrases):
+        draw_box(box, image_draw, label)
 
     out_image = raw_image.convert("RGBA")
 
@@ -221,41 +230,65 @@ def preprocess_caption(caption: str) -> str:
 
 
 def predict_batch(
-        model,
-        images: torch.Tensor,
-        captions: list[str],
-        box_threshold: float = box_threshold,
-        text_threshold: float = text_threshold,
-        device: str = "cuda"
-) -> Tuple[torch.Tensor, torch.Tensor, List[str]]:
-    captions = preprocess_caption(caption=captions)
-
-    model = model.to(device)
+    model,
+    images: torch.Tensor,
+    caption: str,
+    box_threshold: float,
+    text_threshold: float,
+    device: str = "cuda",
+    debug: bool = False,
+):
+    """
+    return:
+        bboxes_batch: list of tensors of shape (n, 4)
+        predicts_batch: list of tensors of shape (n,)
+        phrases_batch: list of list of strings of shape (n,)
+        n is the number of boxes in one image
+    """
+    # caption = preprocess_caption(caption=caption)
+    # model = model.to(device)
     image = images.to(device)
-
-    # print(f"Image shape: {image.shape}") # Image shape: torch.Size([num_batch, 3, 800, 1200])
     with torch.no_grad():
-        outputs = model(image, captions=captions) # <------- I use the same caption for all the images for my use-case
+        outputs = model(
+            image, captions=[caption for _ in range(len(images))]
+        )  # <------- I use the same caption for all the images for my use-case
+    prediction_logits = outputs[
+        "pred_logits"
+    ].sigmoid()  # prediction_logits.shape = (num_batch, nq, 256)
+    prediction_boxes = outputs[
+        "pred_boxes"
+    ]  # prediction_boxes.shape = (num_batch, nq, 4)
 
-    print(f'{outputs["pred_logits"].shape}') # torch.Size([num_batch, 900, 256]) 
-    print(f'{outputs["pred_boxes"].shape}') # torch.Size([num_batch, 900, 4])
-    prediction_logits = outputs["pred_logits"].cpu().sigmoid()[0]  # prediction_logits.shape = (nq, 256)
-    prediction_boxes = outputs["pred_boxes"].cpu()[0]  # prediction_boxes.shape = (nq, 4)
+    # import ipdb; ipdb.set_trace()
+    mask = (
+        prediction_logits.max(dim=2)[0] > box_threshold
+    )  # mask: torch.Size([num_batch, 256])
 
-    mask = prediction_logits.max(dim=1)[0] > box_threshold
-    logits = prediction_logits[mask]  # logits.shape = (n, 256)
-    boxes = prediction_boxes[mask]  # boxes.shape = (n, 4)
-
+    bboxes_batch = []
+    predicts_batch = []
+    phrases_batch = []  # list of lists
     tokenizer = model.tokenizer
-    tokenized = tokenizer(captions)
+    tokenized = tokenizer(caption)
+    for i in range(prediction_logits.shape[0]):
+        logits = prediction_logits[i][mask[i]]  # logits.shape = (n, 256)
+        phrases = [
+            get_phrases_from_posmap(
+                logit > text_threshold, tokenized, tokenizer
+            ).replace(".", "")
+            for logit in logits  # logit is a tensor of shape (256,) torch.Size([256])  # torch.Size([7, 256])
+        ]
+        boxes = prediction_boxes[i][mask[i]]  # boxes.shape = (n, 4)
+        phrases_batch.append(phrases)
+        bboxes_batch.append(boxes)
+        predicts_batch.append(logits.max(dim=1)[0])
 
-    phrases = [
-        get_phrases_from_posmap(logit > text_threshold, tokenized, tokenizer).replace('.', '')
-        for logit
-        in logits
-    ]
+        if debug:
+            image_draw = ImageDraw.Draw(raw_image)
+            for box, label in zip(boxes, phrases):
+                draw_box(box, image_draw, label)
 
-    return boxes, logits.max(dim=1)[0], phrases
+    return bboxes_batch, predicts_batch, phrases_batch
+
 
 @torch.no_grad()
 def inference(
