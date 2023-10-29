@@ -1,9 +1,7 @@
 # Anomaly Detection
 TODO: Contents
-# Setup
 
-## 1. Recognize Anything Model ( + Grounded Segment Anything)
-[**GitHub link + Papers**](https://github.com/IDEA-Research/Grounded-Segment-Anything)
+## Local Setup
 
 ### 1.1. Create Virtual Environment within Linux (or WSL) using these commands (more or less, depending on what you already have installed)
 ```bash
@@ -44,42 +42,9 @@ sudo apt install cuda-toolkit-11-6
 # PyTorch installation with CUDA 11.6
 pip install torch==1.13.0+cu116 torchvision==0.14.0+cu116 torchaudio==0.13.0 --extra-index-url https://download.pytorch.org/whl/cu116
 ```
-### 1.3. Download Weights and Models in relevant folders
-```
-download RAM and Tag2Text checkpoints to ./pretrained/ from https://github.com/majinyu666/recognize-anything/tree/main#toolbox-checkpoints
 
-pretrained\ram_swin_large_14m.pth
-pretrained\tag2text_swin_14m.pth
 
-# download GroundingDINO and SAM checkpoints to ./Grounded-Segment-Anything/ from step 1 of https://github.com/IDEA-Research/Grounded-Segment
-
-Grounded-Segment-Anything\sam_vit_h_4b8939.pth
-Grounded-Segment-Anything\groundingdino_swint_ogc.pth
-
-```
-
-### 1.4. Install actual modules using `requirements.txt` and `setup.py`
-```
-# Recognize Anything Reqs
-pip install -r recognize-anything-requirements.txt
-pip install -e .
-pip install git+https://github.com/xinyu1205/recognize-anything.git
-
-# Go into Grounded-SAM repo
-git clone https://github.com/IDEA-Research/Grounded-Segment-Anything.git
-
-cd ./Grounded-Segment-Anything
-
-pip install -r ./requirements.txt
-pip install ./segment_anything
-pip install ./GroundingDINO
-
-cd ..
-
-pip install opencv-python pycocotools matplotlib onnxruntime onnx ipykernel timm==0.4.12
-```
-
-### 1.5. We can now launch the notebook server
+### 1.4. We can now launch the notebook server
 ```
 jupyter notebook --no-browser
 ```
@@ -93,22 +58,21 @@ source venv/bin/activate
 jupyter notebook --no-browser
 ```
 
-## 2. Masked Autoencoder for Vision Transformers
-We leverage this implementation and base model: [GitHub: Masked Autoencoders: A PyTorch Implementation](https://github.com/facebookresearch/mae/blob/main/README.md )
+# Project Setup
 
-An overview for how this model works in practice: [Colab Notebook](https://colab.research.google.com/github/facebookresearch/mae/blob/main/demo/mae_visualize.ipynb ) 
-
-### 2.1. Download either of the checkpoints, and place them in the `pretrained` directory.
+## OW_DETR
 ```
-pretrained/mae_pretrain_vit_{base|large|huge}
+git clone git@github.com:the-sergiu/OW-DETR.git
+cd ./models/ops
+sh ./make.sh
+# unit test (should see all checking is True)
+python test.py
 
-# Links:
-# https://dl.fbaipublicfiles.com/mae/visualize/mae_visualize_vit_base.pth
-# https://dl.fbaipublicfiles.com/mae/visualize/mae_visualize_vit_large.pth
-# https://dl.fbaipublicfiles.com/mae/visualize/mae_visualize_vit_huge.pth
+# Make sure there is a `pretrained` folder outsite the `OW-DETR` containing checkpoints mentioned in `OW-DETR\README.md`
 ```
-
-### 2.3. Double check that we have `timm==0.4.12` version installed. Code from `mae.py` should run without issues, but certain changes to `numpy` may affect current functionality.
----------------------
 
 # TODO: Datasets
+
+
+# TODO: In-Painting
+Notebook that uses GroundingDINO: https://github.com/IDEA-Research/GroundingDINO/blob/main/demo/image_editing_with_groundingdino_gligen.ipynb

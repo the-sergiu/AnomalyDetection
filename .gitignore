@@ -3,6 +3,9 @@ Grounded-Segment-Anything/
 pretrained/
 trained/
 datasets/
+OW-DETR/
+ml-fastvit/
+Accurate-Interpretable-VAD/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
