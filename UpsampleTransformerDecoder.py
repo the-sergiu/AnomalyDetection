@@ -45,9 +45,10 @@ class UpsampleTransformerDecoder(nn.Module):
             
             self.up_blocks.append(
                 nn.Sequential(
-                    nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+                    nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False), # as putea pune Nearest neigh in loc de bilinear
                     nn.Conv2d(input_channels, out_channels, kernel_size=3, padding=1),
-                    GELU()
+                    # Putem adauga aici resnet block
+                    GELU() # Punem leaky relu in loc de GELU
                 )
             )
             input_channels = out_channels
