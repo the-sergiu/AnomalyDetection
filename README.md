@@ -1,7 +1,9 @@
 # Anomaly Detection
 TODO: Contents
 
-## Local Setup
+
+# Project Setup
+## 1. Locally installing dependencies
 
 ### 1.1. Create Virtual Environment within Linux (or WSL) using these commands (more or less, depending on what you already have installed)
 ```bash
@@ -22,7 +24,7 @@ pip3 install wheel jupyter
 pip3 install --upgrade pip setuptools wheel
 ```
 
-### 1.3. Now's the shaky part - we want to install a very specific Cuda Toolkit version, with a very specific PyTorch version. This can cause headaches - and a lot of frustration. According to the creators of the original repo, they run cuda 11.6 with PyTorch version 1.13. As such, assuming we are using Ubuntu 20.04, we'll want to run something along the lines of:
+### 1.3. Now's the shaky part - we want to install a very specific Cuda Toolkit version, with a very specific PyTorch version. This can cause headaches - and a lot of frustration. We want to install cuda toolkit 11.6 with PyTorch version 1.13. As such, assuming we are using Ubuntu 20.04, we'll want to run something along the lines of:
 ```bash
 # CUDA installation on Ubuntu - https://gist.github.com/ksopyla/bf74e8ce2683460d8de6e0dc389fc7f5
 #############
@@ -43,36 +45,16 @@ sudo apt install cuda-toolkit-11-6
 pip install torch==1.13.0+cu116 torchvision==0.14.0+cu116 torchaudio==0.13.0 --extra-index-url https://download.pytorch.org/whl/cu116
 ```
 
+New versions of cuda toolkit should work, but there might be issues when installing specific PyTorch versions.
 
-### 1.4. We can now launch the notebook server
+## 2. "Installing" FastViT (Apple Research)
+Clone the `ml-fastvit` repo into the root of this repo:
 ```
-jupyter notebook --no-browser
+git clone git@github.com:apple/ml-fastvit.git
 ```
+We will leverage the code from here later by appending this folder to our Python packages path.
 
-- When developing, these commands will come in handy
-```
-wsl
-cd ../../ # To go to /c/mnt in WSL
-cd Users/Sergiu/Desktop/AnomalyDetection
-source venv/bin/activate
-jupyter notebook --no-browser
-```
 
-# Project Setup
 
-## OW_DETR
-```
-git clone git@github.com:the-sergiu/OW-DETR.git
-cd ./models/ops
-sh ./make.sh
-# unit test (should see all checking is True)
-python test.py
-
-# Make sure there is a `pretrained` folder outsite the `OW-DETR` containing checkpoints mentioned in `OW-DETR\README.md`
-```
 
 # TODO: Datasets
-
-
-# TODO: In-Painting
-Notebook that uses GroundingDINO: https://github.com/IDEA-Research/GroundingDINO/blob/main/demo/image_editing_with_groundingdino_gligen.ipynb

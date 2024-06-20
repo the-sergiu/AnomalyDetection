@@ -1,12 +1,15 @@
-import torch.nn as nn
 import sys
-sys.path.append('./ml-fastvit')
 
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from timm.models import create_model
+
 from models.modules.mobileone import reparameterize_model
 from UpsampleTransformerDecoder import UpsampleTransformerDecoder
-import torch.nn.functional as F
+
+sys.path.append("./ml-fastvit")
+
 
 
 class TransformerAutoencoder(nn.Module):
@@ -29,20 +32,31 @@ class CNNEncoder(nn.Module):
     encoder_teacher = CNNEncoder()
     latent_representation = encoder_teacher(example_input)
     """
+
     def __init__(self):
         super(CNNEncoder, self).__init__()
         self.conv_layers = nn.Sequential(
             # Input: (batch_size, 3, 64, 64)
-            nn.Conv2d(in_channels=3, out_channels=32, kernel_size=4, stride=2, padding=1),  # (batch_size, 32, 32, 32)
+            nn.Conv2d(
+                in_channels=3, out_channels=32, kernel_size=4, stride=2, padding=1
+            ),  # (batch_size, 32, 32, 32)
             nn.ReLU(),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1), # (batch_size, 64, 16, 16)
+            nn.Conv2d(
+                in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1
+            ),  # (batch_size, 64, 16, 16)
             nn.ReLU(),
-            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=4, stride=2, padding=1), # (batch_size, 128, 8, 8)
+            nn.Conv2d(
+                in_channels=64, out_channels=128, kernel_size=4, stride=2, padding=1
+            ),  # (batch_size, 128, 8, 8)
             nn.ReLU(),
-            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=1), # (batch_size, 256, 4, 4)
+            nn.Conv2d(
+                in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=1
+            ),  # (batch_size, 256, 4, 4)
             nn.ReLU(),
-            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=4, stride=2, padding=1), # (batch_size, 512, 2, 2)
-            nn.ReLU()
+            nn.Conv2d(
+                in_channels=256, out_channels=512, kernel_size=4, stride=2, padding=1
+            ),  # (batch_size, 512, 2, 2)
+            nn.ReLU(),
         )
 
     def forward(self, x):
@@ -59,14 +73,25 @@ class CNNDecoder(nn.Module):
     decoder_teacher = CNNDecoder()
     reconstructed_images = decoder_teacher(latent_representation)
     """
+
     def __init__(self):
         super(CNNDecoder, self).__init__()
-        self.deconv1 = nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1)  # output shape: (batch_size, 256, 4, 4)
-        self.deconv2 = nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1)  # output shape: (batch_size, 128, 8, 8)
-        self.deconv3 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1)   # output shape: (batch_size, 64, 16, 16)
-        self.deconv4 = nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1)    # output shape: (batch_size, 32, 32, 32)
-        self.deconv5 = nn.ConvTranspose2d(32, 3, kernel_size=4, stride=2, padding=1)     # output shape: (batch_size, 3, 64, 64)
-        
+        self.deconv1 = nn.ConvTranspose2d(
+            512, 256, kernel_size=4, stride=2, padding=1
+        )  # output shape: (batch_size, 256, 4, 4)
+        self.deconv2 = nn.ConvTranspose2d(
+            256, 128, kernel_size=4, stride=2, padding=1
+        )  # output shape: (batch_size, 128, 8, 8)
+        self.deconv3 = nn.ConvTranspose2d(
+            128, 64, kernel_size=4, stride=2, padding=1
+        )  # output shape: (batch_size, 64, 16, 16)
+        self.deconv4 = nn.ConvTranspose2d(
+            64, 32, kernel_size=4, stride=2, padding=1
+        )  # output shape: (batch_size, 32, 32, 32)
+        self.deconv5 = nn.ConvTranspose2d(
+            32, 3, kernel_size=4, stride=2, padding=1
+        )  # output shape: (batch_size, 3, 64, 64)
+
         # Batch normalization layers
         self.batchnorm1 = nn.BatchNorm2d(256)
         self.batchnorm2 = nn.BatchNorm2d(128)
@@ -96,17 +121,19 @@ class CNNAutoencoder(nn.Module):
 
 class AvenueAutoencoder(nn.Module):
     def __init__(
-        self, 
-        path=None, 
-        input_channels=512, 
-        num_upsamples=5, 
-        num_blocks=2, 
+        self,
+        path=None,
+        input_channels=512,
+        num_upsamples=5,
+        num_blocks=2,
         num_heads=8,
         ff_dim=1024,
-        output_channels=3
+        output_channels=3,
     ):
         super(AvenueAutoencoder, self).__init__()
-        self.encoder = create_model("fastvit_t12", fork_feat=True) # can turn fork_feat to False   
+        self.encoder = create_model(
+            "fastvit_t12", fork_feat=True
+        )  # can turn fork_feat to False
         self.encoder = reparameterize_model(self.encoder)
         self.decoder = UpsampleTransformerDecoder(
             input_channels=input_channels,
@@ -117,13 +144,12 @@ class AvenueAutoencoder(nn.Module):
             output_channels=output_channels,
             # use_positional_encoding=True
         )
+
         if path:
-            self.encoder.load_state_dict(torch.load(path)['encoder_state_dict'])
-            self.decoder.load_state_dict(torch.load(path)['decoder_state_dict'])
+            self.encoder.load_state_dict(torch.load(path)["encoder_state_dict"])
+            self.decoder.load_state_dict(torch.load(path)["decoder_state_dict"])
 
     def forward(self, x):
         x = self.encoder(x)
         x = self.decoder(x[-1])
         return x
-
-
