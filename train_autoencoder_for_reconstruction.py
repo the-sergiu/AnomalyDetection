@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision import transforms as T
 
-from Autoencoder import AvenueAutoencoder
+from Autoencoder import Autoencoder
 
 sys.path.append("./ml-fastvit")
 
@@ -55,13 +55,13 @@ train_loader = DataLoader(
 print(train_dataset)
 
 # Declare Model, Loss & Optimizer
-autoencoder = AvenueAutoencoder().to(device)
+autoencoder = Autoencoder().to(device)
 criterion = nn.MSELoss()
 optimizer = optim.AdamW(autoencoder.parameters(), lr=0.001)
 
 # Training loop
 losses = []
-smallest_loss = 1
+smallest_loss = float('inf')
 
 
 def train_loop(wandb_run: bool = False) -> None:
@@ -119,7 +119,9 @@ def train_loop(wandb_run: bool = False) -> None:
             }
             torch.save(
                 checkpoint,
-                f"autoencoder_t12_decoder_yolov8_2_adamw_numheads_{autoencoder.decoder.num_heads}_ffdim_{autoencoder.decoder.ff_dim}_numblocks_{autoencoder.decoder.num_blocks}_epoch_{epoch+1}_mseloss_{running_loss / len(train_loader)}.pth",
+                f"autoencoder_t12_decoder_yolov8_2_adamw_numheads_{autoencoder.decoder.num_heads}"
+                f"_ffdim_{autoencoder.decoder.ff_dim}_numblocks_{autoencoder.decoder.num_blocks}"
+                f"_epoch_{epoch+1}_mseloss_{running_loss / len(train_loader)}.pth",
             )
 
         if wandb_run:

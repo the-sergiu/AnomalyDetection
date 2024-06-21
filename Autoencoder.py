@@ -119,7 +119,7 @@ class CNNAutoencoder(nn.Module):
         return x
 
 
-class AvenueAutoencoder(nn.Module):
+class Autoencoder(nn.Module):
     def __init__(
         self,
         path=None,
@@ -130,7 +130,7 @@ class AvenueAutoencoder(nn.Module):
         ff_dim=1024,
         output_channels=3,
     ):
-        super(AvenueAutoencoder, self).__init__()
+        super(Autoencoder, self).__init__()
         self.encoder = create_model(
             "fastvit_t12", fork_feat=True
         )  # can turn fork_feat to False

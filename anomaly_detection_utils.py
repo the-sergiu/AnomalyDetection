@@ -8,7 +8,6 @@ import numpy as np
 import torch
 import torchvision.transforms as T
 import torchvision.utils as vutils
-from evaluation.merge_tracks import ContinuousTrack
 from PIL import Image
 from sklearn import metrics
 from torch.nn import functional as F

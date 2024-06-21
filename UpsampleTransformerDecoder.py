@@ -30,13 +30,19 @@ class TransformerDecoderBlock(nn.Module):
 class UpsampleTransformerDecoder(nn.Module):
     def __init__(self, input_channels, num_upsamples, num_blocks, num_heads, ff_dim, output_channels):
         super().__init__()
+        self.input_channels = input_channels
+        self.num_upsamples = num_upsamples
+        self.num_blocks = num_blocks
+        self.num_heads = num_heads
+        self.ff_dim = ff_dim
+        self.output_channels = output_channels
         self.up_blocks = nn.ModuleList()
         self.transformer_blocks = nn.ModuleList()
 
         # Ensure that the initial input_channels is divisible by 2^num_upsamples
         assert input_channels % (2 ** num_upsamples) == 0, "input_channels must be divisible by 2^num_upsamples"
 
-        for i in range(num_upsamples):
+        for _ in range(num_upsamples):
             out_channels = input_channels // 2
 
             # Ensure the resulting channels are divisible by num_heads for the transformer
