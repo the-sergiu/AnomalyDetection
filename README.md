@@ -19,7 +19,6 @@ We evaluated the effectiveness of our video anomaly detection method across thre
 These datasets provided a comprehensive evaluation framework for our anomaly detection method, covering a range of scenarios and anomaly types.
 
 # Results
-
 Our recent evaluation of anomaly detection methods across several benchmark datasets, including Avenue, ShanghaiTech, and UBnormal, shows competitive performance for our approach, balancing accuracy and computational efficiency, evident from the frames per second (FPS) metrics.
 
 **Avenue Dataset**:
@@ -101,6 +100,11 @@ git clone git@github.com:princeton-vl/RAFT.git
 ```
 
 ## 4. Final Touches
-- Notebooks are expected to run from the root of the repository. Copy them if necessary
+- Scripts & Notebooks are expected to run from the root of the repository. Copy them if necessary.
+```
+cp src/*.py .
+cp nbs/*.ipynb .
+```
+
 - The following code contained a `datasets` folder which contained all 3 datasets, and as such, many of the paths used within the code take this into account.
 
