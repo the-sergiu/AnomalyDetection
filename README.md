@@ -2,6 +2,8 @@
 TODO: Contents
 
 
+
+
 # Project Setup
 ## 1. Locally installing dependencies
 
@@ -47,14 +49,17 @@ pip install torch==1.13.0+cu116 torchvision==0.14.0+cu116 torchaudio==0.13.0 --e
 
 New versions of cuda toolkit should work, but there might be issues when installing specific PyTorch versions.
 
-## 2. "Installing" FastViT (Apple Research)
-Clone the `ml-fastvit` repo into the root of this repo:
+## 2. Clone FastViT (Apple Research)
+Clone the [`ml-fastvit`](https://github.com/apple/ml-fastvit) repo into the root of this repo:
 ```
 git clone git@github.com:apple/ml-fastvit.git
 ```
 We will leverage the code from here later by appending this folder to our Python packages path.
 
+# 3. Clone RAFT (Optical Flow)
+Clone the [`RAFT`](https://github.com/princeton-vl/RAFT) repo into the root of this repo:
+```
+git clone git@github.com:princeton-vl/RAFT.git
+```
 
-
-
-# TODO: Datasets
+# Datasets
