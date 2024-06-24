@@ -61,7 +61,7 @@ optimizer = optim.AdamW(autoencoder.parameters(), lr=0.001)
 
 # Training loop
 losses = []
-smallest_loss = float('inf')
+smallest_loss = float("inf")
 
 
 def train_loop(wandb_run: bool = False) -> None:
@@ -126,7 +126,7 @@ def train_loop(wandb_run: bool = False) -> None:
 
         if wandb_run:
             run.log({"Loss": loss, "epoch": epoch + 1})
-        
+
         print(f"Epoch {epoch+1}, Loss: {running_loss / len(train_loader):.4f}")
         running_loss = 0.0
 

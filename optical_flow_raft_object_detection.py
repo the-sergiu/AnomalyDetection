@@ -5,10 +5,14 @@ import numpy as np
 import torch
 import torchvision.transforms as T
 
-from object_detection_utils import (get_directory_names, list_image_files,
-                                    preprocess)
-from optical_flow_raft_utils import (Args, find_bounding_boxes, inference,
-                                     load_model, process_image)
+from object_detection_utils import get_directory_names, list_image_files, preprocess
+from optical_flow_raft_utils import (
+    Args,
+    find_bounding_boxes,
+    inference,
+    load_model,
+    process_image,
+)
 
 sys.path.append("RAFT/core")
 device = "cuda" if torch.cuda.is_available() else "cpu"

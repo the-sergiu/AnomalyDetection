@@ -11,7 +11,6 @@ from UpsampleTransformerDecoder import UpsampleTransformerDecoder
 sys.path.append("./ml-fastvit")
 
 
-
 class TransformerAutoencoder(nn.Module):
     def __init__(self, encoder, decoder):
         super(TransformerAutoencoder, self).__init__()

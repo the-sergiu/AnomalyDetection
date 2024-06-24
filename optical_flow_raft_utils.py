@@ -14,7 +14,6 @@ from utils.utils import InputPadder
 sys.path.append("RAFT/core")
 
 
-
 # class to interface with RAFT
 class Args:
     def __init__(
